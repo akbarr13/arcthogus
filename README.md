@@ -3,6 +3,8 @@
   <h1>Arcthogus Esports</h1>
   <p><strong>Born in the pandemic. Forged through competition.</strong></p>
 
+  [![Site](https://img.shields.io/badge/Live%20Site-arcthogus.arwebs.my.id-9D4EDD?style=flat-square&logo=vercel&logoColor=white)](https://arcthogus.arwebs.my.id)
+
   ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
   ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
   ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)
