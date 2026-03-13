@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   },
   description: 'Tim esports asal Indonesia yang lahir dari Valorant. Komunitas solid, jersey resmi, dan semangat yang nggak padam.',
   keywords: ['arcthogus', 'esports', 'valorant', 'tim esports indonesia', 'jersey esports', 'gaming community'],
-  authors: [{ name: 'Arcthogus' }],
-  creator: 'Arcthogus',
   robots: {
     index: true,
     follow: true,
