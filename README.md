@@ -18,9 +18,10 @@ Website resmi **Arcthogus** — tim esports Valorant asal Indonesia yang berdiri
 ## Fitur
 
 - **Homepage interaktif** — particle canvas, custom cursor, parallax, scroll reveal, glitch effect, dan typing animation
-- **Toko jersey** — order online dengan QRIS dinamis per nominal, upload bukti bayar, dan cek status order via Order ID
-- **Panel admin** — kelola pesanan, update status, lihat bukti bayar, atur harga dan stok toko, ganti password
-- **Keamanan** — rate limiting per IP (Supabase RPC), harga dihitung di server, validasi MIME upload, CSP headers, HSTS, dan CORS
+- **Toko jersey** — order online, redirect ke [Bayaraja](https://bayaraja.arwebs.my.id) untuk pembayaran QRIS, dan cek status order via Order ID
+- **Panel admin** — kelola pesanan, update status fulfillment, atur harga dan stok toko, ganti password
+- **Bayaraja integration** — payment link dibuat otomatis per order, status diupdate via webhook (pending → waiting → confirmed)
+- **Keamanan** — rate limiting per IP (Supabase RPC), harga dihitung di server, HMAC-SHA256 webhook verification, CSP headers, HSTS, dan CORS
 
 ## Stack
 
@@ -40,9 +41,9 @@ app/
 ├── login/page.tsx        # Login admin
 ├── dashboard/page.tsx    # Panel admin
 └── api/
-    ├── submit-order/     # Terima order baru
-    ├── confirm-payment/  # Upload bukti bayar
+    ├── submit-order/     # Terima order, buat Bayaraja payment link
     ├── check-order/      # Cek status order (publik)
+    ├── webhooks/bayaraja/ # Terima webhook dari Bayaraja
     └── auth/callback/    # OAuth callback Supabase
 lib/
 └── supabase/
@@ -74,29 +75,31 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ALLOWED_ORIGIN=http://localhost:3000
+BAYARAJA_API_URL=https://bayaraja.arwebs.my.id
+BAYARAJA_API_KEY=byr_...
+BAYARAJA_QRIS_ACCOUNT_ID=uuid-qris-account
+BAYARAJA_WEBHOOK_SECRET=whsec_...
 ```
 
 **3. Supabase — buat tabel & fungsi**
 
 Buat dua tabel di Supabase:
 
-- `orders` — kolom: `id, name, phone, address, size, qty, price, total, status, payment_proof, notes, created_at`
+- `orders` — kolom: `id, name, phone, address, size, qty, price, total, status, notes, bayaraja_link_id, payment_url, created_at`
 - `settings` — wajib ada row dengan `id = 1`
 
-Buat tiga RPC functions:
+Buat dua RPC functions:
 
 ```sql
 check_rate_limit(p_ip, p_endpoint, p_max, p_window_seconds) → boolean
 check_order_status(p_order_id) → row (tanpa PII)
-submit_payment_proof(p_order_id, p_proof_url) → void
 ```
 
-Buat dua storage bucket:
+Buat storage bucket:
 
-- `payment-proofs` → **private**
 - `store-assets` → **public**
 
-Aktifkan RLS di tabel `orders`.
+Aktifkan RLS di tabel `orders` dan `settings` dengan SELECT policy untuk anon.
 
 **4. Jalankan dev server**
 
