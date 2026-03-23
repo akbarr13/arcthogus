@@ -106,7 +106,64 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true })
+    // Buat payment link di Bayaraja
+    const bayarajaUrl = process.env.BAYARAJA_API_URL
+    const bayarajaKey = process.env.BAYARAJA_API_KEY
+    const bayarajaQrisId = process.env.BAYARAJA_QRIS_ACCOUNT_ID
+
+    if (!bayarajaUrl || !bayarajaKey || !bayarajaQrisId) {
+      // Rollback order jika env tidak terkonfigurasi
+      await sb.from('orders').delete().eq('id', id)
+      console.error('Bayaraja env vars tidak terkonfigurasi')
+      return NextResponse.json({ error: 'Server belum terkonfigurasi.' }, { status: 500 })
+    }
+
+    let linkRes: Response
+    try {
+      linkRes = await fetch(`${bayarajaUrl}/api/links`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${bayarajaKey}`,
+        },
+        body: JSON.stringify({
+          qris_account_id: bayarajaQrisId,
+          title: `Order ${id}`,
+          description: `Jersey ${size} x${qty} — ${name}`,
+          amount: total,
+          is_single_use: true,
+        }),
+      })
+    } catch (fetchErr) {
+      // Bayaraja tidak bisa dihubungi — rollback order
+      await sb.from('orders').delete().eq('id', id)
+      console.error('Bayaraja API unreachable:', fetchErr)
+      return NextResponse.json(
+        { error: 'Gagal menghubungi sistem pembayaran. Coba lagi.' },
+        { status: 502 }
+      )
+    }
+
+    if (!linkRes.ok) {
+      await sb.from('orders').delete().eq('id', id)
+      const linkBody = await linkRes.json().catch(() => ({}))
+      console.error('Bayaraja API error:', linkRes.status, linkBody)
+      return NextResponse.json(
+        { error: 'Gagal membuat link pembayaran. Coba lagi.' },
+        { status: 502 }
+      )
+    }
+
+    const { data: linkData } = await linkRes.json()
+    const paymentUrl: string = linkData.payment_url
+
+    // Simpan Bayaraja link info ke order
+    await sb
+      .from('orders')
+      .update({ bayaraja_link_id: linkData.id, payment_url: paymentUrl })
+      .eq('id', id)
+
+    return NextResponse.json({ success: true, payment_url: paymentUrl })
   } catch (e) {
     console.error('submit-order error:', e)
     return NextResponse.json({ error: 'Server error.' }, { status: 500 })

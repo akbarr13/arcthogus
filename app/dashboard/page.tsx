@@ -9,18 +9,19 @@ import { getBrowserSupabase } from '@/lib/supabase/browser'
 type Order = {
   id: string; name: string; phone: string; address: string
   size: string; qty: number; price: number; total: number
-  status: string; payment_proof: string; notes: string; created_at: string
+  status: string; notes: string; created_at: string
+  bayaraja_link_id: string | null; payment_url: string | null
 }
 
 type Settings = {
   jersey_price: number; jersey_description: string
-  jersey_image: string; qris_image: string; qris_string: string; store_open: boolean
+  jersey_image: string; store_open: boolean
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Menunggu Verifikasi', confirmed: 'Pembayaran Terkonfirmasi',
-  processing: 'Sedang Diproses', shipped: 'Sedang Dikirim',
-  done: 'Selesai', cancelled: 'Dibatalkan',
+  pending: 'Belum Bayar', waiting: 'Menunggu Verifikasi',
+  confirmed: 'Pembayaran Terkonfirmasi', processing: 'Sedang Diproses',
+  shipped: 'Sedang Dikirim', done: 'Selesai', cancelled: 'Dibatalkan',
 }
 
 function esc(str: unknown): string {
@@ -35,28 +36,20 @@ export default function DashboardPage() {
 
   const [tab, setTab] = useState<'orders' | 'settings'>('orders')
   const [orders, setOrders] = useState<Order[]>([])
-  const [settings, setSettings] = useState<Partial<Settings>>({})
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [detailStatus, setDetailStatus] = useState('')
   const [detailNotes, setDetailNotes] = useState('')
-  const [proofUrl, setProofUrl] = useState('')
   const [updating, setUpdating] = useState(false)
-  const [proofLoading, setProofLoading] = useState(false)
 
   // Settings form state
   const [setPrice, setSetPrice] = useState('')
   const [setDesc, setSetDesc] = useState('')
   const [storeOpen, setStoreOpen] = useState(true)
-  const [qrisString, setQrisString] = useState('')
   const [jerseyFile, setJerseyFile] = useState<File | null>(null)
-  const [qrisFile, setQrisFile] = useState<File | null>(null)
   const [jerseyPreview, setJerseyPreview] = useState('')
-  const [qrisPreview, setQrisPreview] = useState('')
   const [savingProduct, setSavingProduct] = useState(false)
-  const [savingQris, setSavingQris] = useState(false)
   const [okProduct, setOkProduct] = useState(false)
-  const [okQris, setOkQris] = useState(false)
 
   // New pass state
   const [newPass, setNewPass] = useState('')
@@ -71,15 +64,12 @@ export default function DashboardPage() {
 
   const loadSettings = useCallback(async () => {
     const sb = getBrowserSupabase()
-    const { data } = await sb.from('settings').select('*').eq('id', 1).single()
+    const { data } = await sb.from('settings').select('jersey_price, jersey_description, jersey_image, store_open').eq('id', 1).single()
     if (!data) return
-    setSettings(data)
     setSetPrice(String(data.jersey_price || ''))
     setSetDesc(data.jersey_description || '')
     setStoreOpen(data.store_open !== false)
-    setQrisString(data.qris_string || '')
     if (data.jersey_image) setJerseyPreview(data.jersey_image)
-    if (data.qris_image) setQrisPreview(data.qris_image)
   }, [])
 
   useEffect(() => {
@@ -99,21 +89,10 @@ export default function DashboardPage() {
     router.refresh()
   }
 
-  async function openDetail(order: Order) {
+  function openDetail(order: Order) {
     setSelectedOrder(order)
     setDetailStatus(order.status)
     setDetailNotes(order.notes || '')
-    setProofUrl('')
-
-    if (order.payment_proof) {
-      setProofLoading(true)
-      const sb = getBrowserSupabase()
-      const { data } = await sb.storage
-        .from('payment-proofs')
-        .createSignedUrl(order.payment_proof, 3600)
-      if (data) setProofUrl(data.signedUrl)
-      setProofLoading(false)
-    }
   }
 
   async function updateOrder() {
@@ -159,26 +138,6 @@ export default function DashboardPage() {
     if (error) { alert('Gagal menyimpan.'); return }
     setOkProduct(true)
     setTimeout(() => setOkProduct(false), 2500)
-  }
-
-  async function saveQris() {
-    if (!qrisString && !qrisFile) { alert('Masukkan string QRIS atau upload gambar.'); return }
-    if (qrisFile && !ALLOWED_IMAGE_TYPES.includes(qrisFile.type)) {
-      alert('Tipe file tidak diizinkan. Gunakan JPG, PNG, WebP, atau GIF.'); return
-    }
-    setSavingQris(true)
-    const sb = getBrowserSupabase()
-    const payload: Record<string, unknown> = {}
-    if (qrisString) payload.qris_string = qrisString
-    if (qrisFile) {
-      const ext = MIME_TO_EXT[qrisFile.type] ?? 'jpg'
-      payload.qris_image = await uploadToStorage(qrisFile, 'store-assets', `qris/qris.${ext}`)
-    }
-    const { error } = await sb.from('settings').update(payload).eq('id', 1)
-    setSavingQris(false)
-    if (error) { alert('Gagal menyimpan QRIS.'); return }
-    setOkQris(true)
-    setTimeout(() => setOkQris(false), 2500)
   }
 
   async function savePassword() {
@@ -381,27 +340,6 @@ export default function DashboardPage() {
                 {okProduct && <p style={{ color: '#22c55e', fontSize: '.8rem', marginTop: '8px', textAlign: 'center' }}><i className="fa fa-check" /> Tersimpan!</p>}
               </div>
 
-              {/* QRIS */}
-              <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(157,78,221,.12)', borderRadius: '12px', padding: '24px' }}>
-                <h3 style={{ fontSize: '.88rem', fontWeight: 600, marginBottom: '18px', color: 'var(--purple-bright)' }}><i className="fa fa-qrcode" /> Konfigurasi QRIS</h3>
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>String QRIS Statis</label>
-                  <textarea value={qrisString} onChange={e => setQrisString(e.target.value)} placeholder="00020101021126570011ID.DANA.WWW..." style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '.78rem', minHeight: '90px', wordBreak: 'break-all', resize: 'vertical' }} />
-                </div>
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Gambar QRIS (fallback)</label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 16px', background: 'rgba(157,78,221,.1)', border: '1px dashed rgba(157,78,221,.4)', color: 'var(--purple-bright)', borderRadius: '8px', cursor: 'pointer', fontSize: '.82rem', position: 'relative' }}>
-                    <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) { setQrisFile(f); setQrisPreview(prev => { if (prev.startsWith('blob:')) URL.revokeObjectURL(prev); return URL.createObjectURL(f) }) } }} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-                    <i className="fa fa-upload" /> Upload QRIS
-                  </label>
-                  {qrisPreview && <img src={qrisPreview} alt="QRIS preview" style={{ marginTop: '10px', maxWidth: '100%', maxHeight: '160px', objectFit: 'contain', background: '#fff', borderRadius: '8px', display: 'block', padding: '8px' }} />}
-                </div>
-                <button onClick={saveQris} disabled={savingQris} style={{ width: '100%', padding: '12px', background: 'var(--gradient-bright)', border: 'none', color: '#fff', fontFamily: 'var(--font-body)', fontSize: '.9rem', fontWeight: 700, cursor: 'pointer', borderRadius: '8px', marginTop: '8px' }}>
-                  {savingQris ? <><span className="spinner" />Menyimpan...</> : 'Simpan QRIS'}
-                </button>
-                {okQris && <p style={{ color: '#22c55e', fontSize: '.8rem', marginTop: '8px', textAlign: 'center' }}><i className="fa fa-check" /> Tersimpan!</p>}
-              </div>
-
               {/* Change Password */}
               <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(157,78,221,.12)', borderRadius: '12px', padding: '24px' }}>
                 <h3 style={{ fontSize: '.88rem', fontWeight: 600, marginBottom: '18px', color: 'var(--purple-bright)' }}><i className="fa fa-lock" /> Ganti Password</h3>
@@ -446,13 +384,25 @@ export default function DashboardPage() {
               </div>
             ))}
 
-            <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '16px 0 10px' }}>Bukti Pembayaran</div>
-            {proofLoading
-              ? <p style={{ color: 'var(--text-secondary)', fontSize: '.82rem', margin: '8px 0 16px' }}><span className="spinner" /> Memuat bukti...</p>
-              : proofUrl
-                ? <img src={proofUrl} alt="Bukti pembayaran" style={{ width: '100%', borderRadius: '8px', margin: '8px 0', maxHeight: '260px', objectFit: 'contain', background: 'var(--bg-secondary)' }} />
-                : <p style={{ color: 'var(--text-secondary)', fontSize: '.82rem', margin: '8px 0 16px' }}>Belum ada bukti pembayaran.</p>
-            }
+            {/* Pembayaran via Bayaraja */}
+            <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '16px 0 10px' }}>Pembayaran</div>
+            {selectedOrder.payment_url ? (
+              <div style={{ background: 'rgba(157,78,221,.06)', border: '1px solid rgba(157,78,221,.15)', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '.82rem' }}>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Bukti bayar & konfirmasi dikelola di <strong style={{ color: 'var(--purple-bright)' }}>Bayaraja dashboard</strong>.
+                </p>
+                <a
+                  href={selectedOrder.payment_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--purple-bright)', wordBreak: 'break-all', fontSize: '.76rem' }}
+                >
+                  <i className="fa fa-external-link" /> {selectedOrder.payment_url}
+                </a>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '.82rem', margin: '8px 0 16px' }}>Tidak ada link pembayaran.</p>
+            )}
 
             <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '16px 0 10px' }}>Kelola Pesanan</div>
             <select value={detailStatus} onChange={e => setDetailStatus(e.target.value)}

@@ -1419,7 +1419,7 @@ body.loaded {
 
   .hero-content { padding: 0 20px; }
 
-  .hero-title { font-size: clamp(2.4rem, 10vw, 3.5rem); letter-spacing: 2px; }
+  .hero-title { font-size: clamp(1.6rem, 8.5vw, 3.5rem); letter-spacing: 1px; }
   .hero-line { width: 30px; }
   .hero-content { padding: 0 16px; }
   .hero-desc { font-size: 0.95rem; max-width: 340px; }
@@ -1777,20 +1777,6 @@ body.loaded {
 .pay-amount .lbl { font-size: .72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
 .pay-amount .val { font-family: var(--font-heading); font-size: 2rem; color: var(--purple-neon); }
 
-.qris-wrap {
-  background: #fff;
-  border-radius: 12px;
-  padding: 14px;
-  width: 190px;
-  height: 190px;
-  margin: 0 auto 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.qris-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.qris-empty { text-align: center; color: #999; font-size: .82rem; }
-
 .info-box {
   background: rgba(157, 78, 221, .06);
   border-left: 3px solid var(--purple-bright);
@@ -1801,22 +1787,6 @@ body.loaded {
   color: var(--text-secondary);
   line-height: 1.6;
 }
-
-.upload-area {
-  border: 2px dashed rgba(157, 78, 221, .3);
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  position: relative;
-  margin-bottom: 16px;
-}
-.upload-area:hover { border-color: var(--purple-bright); background: rgba(157, 78, 221, .04); }
-.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.upload-area i { font-size: 1.8rem; color: var(--purple-bright); display: block; margin-bottom: 6px; }
-.upload-area p { font-size: .82rem; color: var(--text-secondary); }
-.proof-prev { width: 100%; max-height: 160px; object-fit: contain; border-radius: 8px; display: none; margin-bottom: 12px; }
 
 /* Status checker */
 .checker-section { padding: 80px 0; border-top: 1px solid rgba(255, 255, 255, .05); }
@@ -1863,7 +1833,8 @@ body.loaded {
 .srow2:last-child { border-bottom: none; }
 .srow2 .k { color: var(--text-secondary); }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-.b-pending { background: rgba(234, 179, 8, .15); color: #eab308; border: 1px solid rgba(234, 179, 8, .3); }
+.b-pending { background: rgba(239, 68, 68, .15); color: #ef4444; border: 1px solid rgba(239, 68, 68, .3); }
+.b-waiting { background: rgba(234, 179, 8, .15); color: #eab308; border: 1px solid rgba(234, 179, 8, .3); }
 .b-confirmed { background: rgba(59, 130, 246, .15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, .3); }
 .b-processing { background: rgba(249, 115, 22, .15); color: #f97316; border: 1px solid rgba(249, 115, 22, .3); }
 .b-shipped { background: rgba(157, 78, 221, .15); color: #9d4edd; border: 1px solid rgba(157, 78, 221, .3); }
@@ -1892,13 +1863,11 @@ body.loaded {
   .mbox { border-radius: 20px 20px 0 0; padding: 28px 20px 32px; max-height: 95vh; max-width: 100%; }
   .mbox h2 { font-size: 1.1rem; margin-bottom: 18px; }
   .pay-amount .val { font-size: 1.7rem; }
-  .qris-wrap { width: 160px; height: 160px; }
   .checker-section { padding: 50px 0 60px; }
   .checker-row { flex-direction: column; }
   .checker-row input { width: 100%; }
   .btn-cek { width: 100%; padding: 13px; }
   .status-card { padding: 16px; }
-  .upload-area { padding: 16px; }
 }
 
 @media (max-width: 400px) {
@@ -1906,5 +1875,4 @@ body.loaded {
   .sizes { gap: 4px; }
   .size-btn { width: 36px; height: 36px; font-size: .75rem; }
   .pay-amount .val { font-size: 1.4rem; }
-  .qris-wrap { width: 140px; height: 140px; }
 }
